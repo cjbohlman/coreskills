@@ -29,9 +29,11 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             
             {/* Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/profile" element={<ProfilePage />} />
-            </Route>
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
             
             {/* 404 Page */}
             <Route path="*" element={<NotFoundPage />} />
