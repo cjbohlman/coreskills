@@ -28,17 +28,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
           if (mounted) setError(error);
         } else {
+          console.log('Initial session:', session?.user?.email || 'No user');
           if (mounted) setUser(session?.user ?? null);
         }
       } catch (err) {
         console.error('Error in getInitialSession:', err);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          console.log('Setting loading to false');
+          setLoading(false);
+        }
       }
     };
 
@@ -47,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        console.log('Auth state changed:', event, session?.user?.email || 'No user');
         if (mounted) {
           setUser(session?.user ?? null);
           setLoading(false);
