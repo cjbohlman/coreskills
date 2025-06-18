@@ -44,6 +44,39 @@ export interface UserProgress {
   completed_at: string | null;
 }
 
+export interface UserProgressWithChallenge extends UserProgress {
+  challenges?: {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: 'easy' | 'medium' | 'hard';
+    path_id: string;
+    learning_paths?: {
+      id: string;
+      title: string;
+      description: string;
+    };
+  };
+}
+
+export interface UserStats {
+  totalAttempted: number;
+  totalCompleted: number;
+  averageAttempts: number;
+  completionRate: number;
+  difficultyStats: {
+    easy: { completed: number; attempted: number };
+    medium: { completed: number; attempted: number };
+    hard: { completed: number; attempted: number };
+  };
+  pathProgress: Array<{
+    id: string;
+    title: string;
+    completed: number;
+  }>;
+  recentCompletions: UserProgressWithChallenge[];
+}
+
 export interface ThemeContextType {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;

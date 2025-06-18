@@ -45,6 +45,143 @@ export async function getUserProgress(userId: string): Promise<UserProgress[]> {
   return data;
 }
 
+export async function getUserProgressWithChallenges(userId: string) {
+  const { data, error } = await supabase
+    .from('user_progress')
+    .select(`
+      *,
+      challenges (
+        id,
+        title,
+        description,
+        difficulty,
+        path_id,
+        learning_paths (
+          id,
+          title,
+          description
+        )
+      )
+    `)
+    .eq('user_id', userId)
+    .order('completed_at', { ascending: false, nullsLast: true });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getUserStats(userId: string) {
+  // Get all user progress
+  const { data: progressData, error: progressError } = await supabase
+    .from('user_progress')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (progressError) throw progressError;
+
+  // Get completed challenges with their details
+  const { data: completedChallenges, error: completedError } = await supabase
+    .from('user_progress')
+    .select(`
+      *,
+      challenges (
+        id,
+        title,
+        difficulty,
+        path_id,
+        learning_paths (
+          id,
+          title
+        )
+      )
+    `)
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false });
+
+  if (completedError) throw completedError;
+
+  // Calculate stats
+  const totalAttempted = progressData.length;
+  const totalCompleted = progressData.filter(p => p.status === 'completed').length;
+  const totalAttempts = progressData.reduce((sum, p) => sum + p.attempts, 0);
+  const averageAttempts = totalAttempted > 0 ? Math.round(totalAttempts / totalAttempted * 10) / 10 : 0;
+
+  // Calculate completion rate by difficulty
+  const difficultyStats = {
+    easy: { completed: 0, attempted: 0 },
+    medium: { completed: 0, attempted: 0 },
+    hard: { completed: 0, attempted: 0 }
+  };
+
+  progressData.forEach(progress => {
+    const challenge = completedChallenges.find(c => c.challenge_id === progress.challenge_id);
+    if (challenge?.challenges?.difficulty) {
+      const difficulty = challenge.challenges.difficulty as 'easy' | 'medium' | 'hard';
+      difficultyStats[difficulty].attempted++;
+      if (progress.status === 'completed') {
+        difficultyStats[difficulty].completed++;
+      }
+    }
+  });
+
+  // Get learning path progress
+  const pathProgress = new Map();
+  completedChallenges.forEach(progress => {
+    const pathId = progress.challenges?.path_id;
+    const pathTitle = progress.challenges?.learning_paths?.title;
+    if (pathId && pathTitle) {
+      if (!pathProgress.has(pathId)) {
+        pathProgress.set(pathId, {
+          id: pathId,
+          title: pathTitle,
+          completed: 0
+        });
+      }
+      pathProgress.get(pathId).completed++;
+    }
+  });
+
+  return {
+    totalAttempted,
+    totalCompleted,
+    averageAttempts,
+    completionRate: totalAttempted > 0 ? Math.round((totalCompleted / totalAttempted) * 100) : 0,
+    difficultyStats,
+    pathProgress: Array.from(pathProgress.values()),
+    recentCompletions: completedChallenges.slice(0, 5)
+  };
+}
+
+export async function getRecommendedChallenges(userId: string, limit: number = 3) {
+  // Get user's completed challenges
+  const { data: userProgress } = await supabase
+    .from('user_progress')
+    .select('challenge_id')
+    .eq('user_id', userId)
+    .eq('status', 'completed');
+
+  const completedIds = userProgress?.map(p => p.challenge_id) || [];
+
+  // Get challenges not yet completed, ordered by difficulty (easier first)
+  const { data, error } = await supabase
+    .from('challenges')
+    .select(`
+      *,
+      learning_paths (
+        id,
+        title
+      )
+    `)
+    .not('id', 'in', `(${completedIds.length > 0 ? completedIds.join(',') : 'null'})`)
+    .order('difficulty', { ascending: true })
+    .order('order_index', { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data;
+}
+
 export async function submitChallenge(
   userId: string,
   challengeId: string,
