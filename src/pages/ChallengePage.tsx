@@ -55,8 +55,26 @@ const ChallengePage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user || !challenge) {
-      console.log('Cannot submit: missing user or challenge', { user: !!user, challenge: !!challenge });
+    console.log('🚀 SUBMIT BUTTON CLICKED!');
+    console.log('Current state:', {
+      user: !!user,
+      challenge: !!challenge,
+      challengeType: challenge?.challenge_type,
+      canvasData: !!canvasData,
+      canvasElements: canvasData?.elements?.length || 0,
+      codeLength: code.length,
+      annotationsCount: codeReviewAnnotations.length
+    });
+
+    if (!user) {
+      console.log('❌ No user - cannot submit');
+      setError('Please sign in to submit your solution');
+      return;
+    }
+
+    if (!challenge) {
+      console.log('❌ No challenge - cannot submit');
+      setError('Challenge not loaded');
       return;
     }
     
@@ -76,7 +94,7 @@ const ChallengePage: React.FC = () => {
         console.log('=== SYSTEM DESIGN SUBMISSION ===');
         console.log('Canvas data exists:', !!canvasData);
         console.log('Canvas elements count:', canvasData?.elements?.length || 0);
-        console.log('Canvas data:', canvasData);
+        console.log('Canvas data details:', canvasData);
         
         if (!canvasData || !canvasData.elements || canvasData.elements.length === 0) {
           console.log('❌ No canvas data - showing error');
@@ -88,6 +106,13 @@ const ChallengePage: React.FC = () => {
         }
         
         console.log('✅ Canvas data valid - calling submitChallenge API');
+        console.log('About to call submitChallenge with:', {
+          userId: user.id,
+          challengeId: challenge.id,
+          code: '',
+          canvasData: canvasData
+        });
+        
         submitResult = await submitChallenge(user.id, challenge.id, '', canvasData);
         console.log('✅ API call completed:', submitResult);
         
@@ -174,7 +199,7 @@ const ChallengePage: React.FC = () => {
   };
 
   const handleCanvasSave = (data: CanvasData) => {
-    console.log('📝 Canvas data saved:', data);
+    console.log('📝 Canvas data saved (this is NOT submission):', data);
     console.log('Elements count:', data.elements?.length || 0);
     setCanvasData(data);
   };
@@ -331,7 +356,10 @@ const ChallengePage: React.FC = () => {
               
               <div className="flex justify-end">
                 <Button
-                  onClick={handleSubmit}
+                  onClick={() => {
+                    console.log('🔥 CODE REVIEW SUBMIT BUTTON CLICKED');
+                    handleSubmit();
+                  }}
                   isLoading={submitting}
                   disabled={submitting || !canSubmit()}
                 >
@@ -387,7 +415,16 @@ const ChallengePage: React.FC = () => {
 
                 <div className="flex justify-end">
                   <Button
-                    onClick={handleSubmit}
+                    onClick={() => {
+                      console.log('🔥 MAIN SUBMIT BUTTON CLICKED');
+                      console.log('Button state:', {
+                        submitting,
+                        canSubmit: canSubmit(),
+                        user: !!user,
+                        challengeType: challenge.challenge_type
+                      });
+                      handleSubmit();
+                    }}
                     isLoading={submitting}
                     disabled={submitting || !canSubmit()}
                   >
@@ -451,6 +488,19 @@ const ChallengePage: React.FC = () => {
                       <div className="flex items-start gap-2">
                         <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
                         <p>Include load balancers, caches, and databases</p>
+                      </div>
+                    </div>
+
+                    {/* Debug Info for System Design */}
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                        Debug Info (Canvas State)
+                      </h4>
+                      <div className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
+                        <p>Canvas Data Exists: {canvasData ? '✅ Yes' : '❌ No'}</p>
+                        <p>Elements Count: {canvasData?.elements?.length || 0}</p>
+                        <p>Can Submit: {canSubmit() ? '✅ Yes' : '❌ No'}</p>
+                        <p>User Signed In: {user ? '✅ Yes' : '❌ No'}</p>
                       </div>
                     </div>
                   </div>
