@@ -10,7 +10,7 @@ import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { Challenge, CanvasData } from '../types';
 import { getChallenge, submitChallenge } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { AlertCircle, CheckCircle, RefreshCw, ArrowLeft, Layout as LayoutIcon, Code2, Search } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, ArrowLeft, Layout as LayoutIcon, Code2, Search, BookOpen } from 'lucide-react';
 
 const ChallengePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -76,6 +76,10 @@ const ChallengePage: React.FC = () => {
 
         if (hasElements) {
           console.log('Saving canvas data:', canvasData);
+          // Navigate to solutions page after successful submission
+          setTimeout(() => {
+            navigate(`/solutions/${challenge.id}`);
+          }, 2000);
         }
       } else if (challenge.challenge_type === 'code_review') {
         // Code review validation
@@ -92,11 +96,22 @@ const ChallengePage: React.FC = () => {
 
         if (hasAnnotations) {
           console.log('Saving code review annotations:', codeReviewAnnotations);
+          // Navigate to solutions page after successful submission
+          setTimeout(() => {
+            navigate(`/solutions/${challenge.id}`);
+          }, 2000);
         }
       } else {
         // Regular coding challenge
         const result = await submitChallenge(user.id, challenge.id, code);
         setResult(result);
+        
+        if (result.success) {
+          // Navigate to solutions page after successful submission
+          setTimeout(() => {
+            navigate(`/solutions/${challenge.id}`);
+          }, 2000);
+        }
       }
     } catch (err) {
       setError('Failed to submit solution');
@@ -380,6 +395,19 @@ const ChallengePage: React.FC = () => {
                         }`}>
                           {error || result.message}
                         </p>
+                        
+                        {result?.success && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/solutions/${challenge.id}`)}
+                              leftIcon={<BookOpen size={16} />}
+                            >
+                              View Solutions
+                            </Button>
+                          </div>
+                        )}
+                        
                         {result?.failedTests && !result.isSystemDesign && !result.isCodeReview && (
                           <div className="mt-4 space-y-3">
                             {result.failedTests.map((test: any, index: number) => (

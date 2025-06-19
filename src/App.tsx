@@ -11,6 +11,7 @@ import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import ChallengesPage from './pages/ChallengesPage';
 import ChallengePage from './pages/ChallengePage';
+import SolutionPage from './pages/SolutionPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AuthCallback from './pages/AuthCallback';
 
@@ -34,6 +35,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/solutions/:id" 
+              element={
+                <ProtectedRoute>
+                  <SolutionPage />
                 </ProtectedRoute>
               } 
             />
