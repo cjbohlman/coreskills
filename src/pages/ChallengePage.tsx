@@ -63,43 +63,54 @@ const ChallengePage: React.FC = () => {
 
     try {
       if (challenge.challenge_type === 'system_design') {
-        // System design validation
+        // System design validation and submission
         const hasElements = canvasData && canvasData.elements && canvasData.elements.length > 0;
         
-        setResult({
-          success: hasElements,
-          message: hasElements 
-            ? 'System design submitted successfully! Your architecture has been saved.' 
-            : 'Please create a system design using the drawing canvas before submitting.',
-          isSystemDesign: true
-        });
-
         if (hasElements) {
-          console.log('Saving canvas data:', canvasData);
+          // Submit to backend
+          const submitResult = await submitChallenge(user.id, challenge.id, '', canvasData);
+          setResult({
+            success: true,
+            message: 'System design submitted successfully! Your architecture has been saved.',
+            isSystemDesign: true
+          });
+          
           // Navigate to solutions page after successful submission
           setTimeout(() => {
             navigate(`/solutions/${challenge.id}`);
           }, 2000);
+        } else {
+          setResult({
+            success: false,
+            message: 'Please create a system design using the drawing canvas before submitting.',
+            isSystemDesign: true
+          });
         }
       } else if (challenge.challenge_type === 'code_review') {
-        // Code review validation
+        // Code review validation and submission
         const hasAnnotations = codeReviewAnnotations.length > 0;
         
-        setResult({
-          success: hasAnnotations,
-          message: hasAnnotations 
-            ? `Code review submitted successfully! You identified ${codeReviewAnnotations.length} issues.` 
-            : 'Please identify at least one issue in the code before submitting.',
-          isCodeReview: true,
-          annotationsCount: codeReviewAnnotations.length
-        });
-
         if (hasAnnotations) {
-          console.log('Saving code review annotations:', codeReviewAnnotations);
+          // Submit to backend
+          const submitResult = await submitChallenge(user.id, challenge.id, '', undefined, codeReviewAnnotations);
+          setResult({
+            success: true,
+            message: `Code review submitted successfully! You identified ${codeReviewAnnotations.length} issues.`,
+            isCodeReview: true,
+            annotationsCount: codeReviewAnnotations.length
+          });
+          
           // Navigate to solutions page after successful submission
           setTimeout(() => {
             navigate(`/solutions/${challenge.id}`);
           }, 2000);
+        } else {
+          setResult({
+            success: false,
+            message: 'Please identify at least one issue in the code before submitting.',
+            isCodeReview: true,
+            annotationsCount: 0
+          });
         }
       } else {
         // Regular coding challenge
@@ -385,7 +396,7 @@ const ChallengePage: React.FC = () => {
                       ) : (
                         <AlertCircle className="h-5 w-5 text-warning-500 dark:text-warning-400 mr-3" />
                       )}
-                      <div>
+                      <div className="flex-1">
                         <p className={`font-medium ${
                           error
                             ? 'text-error-800 dark:text-error-200'
@@ -405,6 +416,9 @@ const ChallengePage: React.FC = () => {
                             >
                               View Solutions
                             </Button>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              Redirecting in 2 seconds...
+                            </span>
                           </div>
                         )}
                         

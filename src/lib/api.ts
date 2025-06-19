@@ -307,3 +307,81 @@ async function runTests(code: string, testCases: any[]): Promise<any[]> {
     }
   });
 }
+
+// Community Discussion API functions
+export async function getCommunityDiscussions(challengeId: string) {
+  const { data, error } = await supabase
+    .from('community_discussions')
+    .select(`
+      *,
+      user:auth.users(id, email, user_metadata)
+    `)
+    .eq('challenge_id', challengeId)
+    .is('parent_id', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getDiscussionReplies(parentId: string) {
+  const { data, error } = await supabase
+    .from('community_discussions')
+    .select(`
+      *,
+      user:auth.users(id, email, user_metadata)
+    `)
+    .eq('parent_id', parentId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createDiscussion(
+  challengeId: string,
+  userId: string,
+  content: string,
+  tags: string[] = [],
+  parentId?: string
+) {
+  const { data, error } = await supabase
+    .from('community_discussions')
+    .insert({
+      challenge_id: challengeId,
+      user_id: userId,
+      content,
+      tags,
+      parent_id: parentId || null
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateDiscussionLikes(discussionId: string, increment: boolean = true) {
+  const { data, error } = await supabase.rpc('update_discussion_likes', {
+    discussion_id: discussionId,
+    increment_likes: increment
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+// Check if user has access to solutions
+export async function checkSolutionAccess(userId: string, challengeId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_progress')
+    .select('status, canvas_submission')
+    .eq('user_id', userId)
+    .eq('challenge_id', challengeId)
+    .single();
+
+  if (error) return false;
+  
+  // User has access if they've completed the challenge or have a submission
+  return data && (data.status === 'completed' || data.canvas_submission);
+}
