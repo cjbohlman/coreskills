@@ -21,14 +21,14 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Challenge, CanvasData, UserProgress } from '../types';
-import { getChallenge, getUserProgress } from '../lib/api';
+import { getChallenge, getUserProgress, checkSolutionAccess } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SolutionApproach {
   id: string;
   title: string;
   description: string;
-  canvasData: CanvasData;
+  canvasData?: CanvasData;
   pros: string[];
   cons: string[];
   complexity: 'low' | 'medium' | 'high';
@@ -50,9 +50,49 @@ const SolutionPage: React.FC = () => {
   const [selectedApproach, setSelectedApproach] = useState(0);
   const [showUserSubmission, setShowUserSubmission] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const [solutionApproaches, setSolutionApproaches] = useState<SolutionApproach[]>([]);
 
-  // Mock solution approaches - in real app, these would come from the database
-  const solutionApproaches: SolutionApproach[] = [
+  useEffect(() => {
+    if (id && user) {
+      loadChallengeAndProgress();
+    }
+  }, [id, user]);
+
+  const loadChallengeAndProgress = async () => {
+    if (!id || !user) return;
+
+    try {
+      setLoading(true);
+      const [challengeData, progressData, accessGranted] = await Promise.all([
+        getChallenge(id),
+        getUserProgress(user.id),
+        checkSolutionAccess(user.id, id)
+      ]);
+
+      setChallenge(challengeData);
+      setHasAccess(accessGranted);
+      
+      // Find user's progress for this specific challenge
+      const userChallengeProgress = progressData.find(p => p.challenge_id === id);
+      setUserProgress(userChallengeProgress || null);
+
+      // Parse solution approaches from challenge data
+      if (challengeData.solution_approaches && Array.isArray(challengeData.solution_approaches)) {
+        setSolutionApproaches(challengeData.solution_approaches as SolutionApproach[]);
+      } else {
+        // Fallback to default approaches if none in database
+        setSolutionApproaches(getDefaultSolutionApproaches());
+      }
+
+    } catch (err) {
+      setError('Failed to load challenge data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getDefaultSolutionApproaches = (): SolutionApproach[] => [
     {
       id: 'microservices',
       title: 'Microservices Architecture',
@@ -148,93 +188,8 @@ const SolutionPage: React.FC = () => {
         'Implement proper layering',
         'Plan for future decomposition'
       ]
-    },
-    {
-      id: 'serverless',
-      title: 'Serverless Architecture',
-      description: 'Event-driven architecture using cloud functions and managed services.',
-      canvasData: {
-        elements: [
-          { id: '1', type: 'rectangle', x: 100, y: 80, width: 100, height: 50, color: '#F59E0B', strokeWidth: 2 },
-          { id: '2', type: 'rectangle', x: 250, y: 80, width: 100, height: 50, color: '#10B981', strokeWidth: 2 },
-          { id: '3', type: 'rectangle', x: 400, y: 80, width: 100, height: 50, color: '#8B5CF6', strokeWidth: 2 },
-          { id: '4', type: 'rectangle', x: 550, y: 80, width: 100, height: 50, color: '#EF4444', strokeWidth: 2 },
-          { id: '5', type: 'text', x: 130, y: 110, text: 'API Gateway', color: '#1F2937', strokeWidth: 1 },
-          { id: '6', type: 'text', x: 280, y: 110, text: 'Lambda Functions', color: '#1F2937', strokeWidth: 1 },
-          { id: '7', type: 'text', x: 430, y: 110, text: 'Event Queue', color: '#1F2937', strokeWidth: 1 },
-          { id: '8', type: 'text', x: 580, y: 110, text: 'Database', color: '#1F2937', strokeWidth: 1 },
-          { id: '9', type: 'arrow', startX: 200, startY: 105, endX: 250, endY: 105, color: '#6B7280', strokeWidth: 2 },
-          { id: '10', type: 'arrow', startX: 350, startY: 105, endX: 400, endY: 105, color: '#6B7280', strokeWidth: 2 },
-          { id: '11', type: 'arrow', startX: 500, startY: 105, endX: 550, endY: 105, color: '#6B7280', strokeWidth: 2 }
-        ],
-        canvasWidth: 800,
-        canvasHeight: 400
-      },
-      pros: [
-        'Automatic scaling and high availability',
-        'Pay-per-use pricing model',
-        'No server management required',
-        'Fast development and deployment'
-      ],
-      cons: [
-        'Vendor lock-in concerns',
-        'Cold start latency',
-        'Limited execution time',
-        'Debugging complexity'
-      ],
-      complexity: 'medium',
-      scalability: 'high',
-      cost: 'low',
-      bestFor: [
-        'Event-driven applications',
-        'Variable or unpredictable traffic',
-        'Rapid development cycles',
-        'Cost-sensitive projects'
-      ],
-      considerations: [
-        'Design for stateless functions',
-        'Implement proper error handling',
-        'Monitor cold start performance',
-        'Use managed services when possible'
-      ]
     }
   ];
-
-  useEffect(() => {
-    if (id && user) {
-      loadChallengeAndProgress();
-    }
-  }, [id, user]);
-
-  const loadChallengeAndProgress = async () => {
-    if (!id || !user) return;
-
-    try {
-      setLoading(true);
-      const [challengeData, progressData] = await Promise.all([
-        getChallenge(id),
-        getUserProgress(user.id)
-      ]);
-
-      setChallenge(challengeData);
-      
-      // Find user's progress for this specific challenge
-      const userChallengeProgress = progressData.find(p => p.challenge_id === id);
-      setUserProgress(userChallengeProgress || null);
-
-      // Check if user has submitted this challenge
-      const hasSubmitted = userChallengeProgress && 
-        (userChallengeProgress.status === 'completed' || userChallengeProgress.canvas_submission);
-      
-      setHasAccess(hasSubmitted || false);
-
-    } catch (err) {
-      setError('Failed to load challenge data');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getComplexityColor = (level: string) => {
     switch (level) {
@@ -316,6 +271,32 @@ const SolutionPage: React.FC = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="bg-error-50 dark:bg-error-900/30 text-error-800 dark:text-error-200 p-4 rounded-lg">
             {error || 'Challenge not found'}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (solutionApproaches.length === 0) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-2xl mx-auto text-center">
+            <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Solutions Coming Soon
+            </h1>
+            <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+              The solutions for this challenge are being prepared. Please check back later.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Button onClick={() => navigate(`/challenges/${id}`)}>
+                Back to Challenge
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/challenges')}>
+                Browse Other Challenges
+              </Button>
+            </div>
           </div>
         </div>
       </Layout>
@@ -449,19 +430,21 @@ const SolutionPage: React.FC = () => {
               {/* Selected Approach Details */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 {/* Architecture Diagram */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                  <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {currentApproach.title} - Architecture
-                    </h3>
+                {currentApproach.canvasData && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                    <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {currentApproach.title} - Architecture
+                      </h3>
+                    </div>
+                    <div className="p-4">
+                      <DrawingCanvas
+                        initialData={currentApproach.canvasData}
+                        readOnly={true}
+                      />
+                    </div>
                   </div>
-                  <div className="p-4">
-                    <DrawingCanvas
-                      initialData={currentApproach.canvasData}
-                      readOnly={true}
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* Approach Analysis */}
                 <div className="space-y-6">

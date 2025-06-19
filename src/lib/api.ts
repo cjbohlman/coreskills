@@ -375,13 +375,20 @@ export async function updateDiscussionLikes(discussionId: string, increment: boo
 export async function checkSolutionAccess(userId: string, challengeId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('user_progress')
-    .select('status, canvas_submission')
+    .select('status, canvas_submission, last_submission')
     .eq('user_id', userId)
     .eq('challenge_id', challengeId)
     .single();
 
-  if (error) return false;
+  if (error) {
+    console.log('No user progress found for challenge:', challengeId);
+    return false;
+  }
   
-  // User has access if they've completed the challenge or have a submission
-  return data && (data.status === 'completed' || data.canvas_submission);
+  // User has access if they've completed the challenge or have any submission
+  return data && (
+    data.status === 'completed' || 
+    data.canvas_submission || 
+    (data.last_submission && data.last_submission.trim() !== '')
+  );
 }
