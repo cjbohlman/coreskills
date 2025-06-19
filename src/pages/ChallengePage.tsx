@@ -55,9 +55,16 @@ const ChallengePage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user || !challenge) return;
+    if (!user || !challenge) {
+      console.log('Cannot submit: missing user or challenge', { user: !!user, challenge: !!challenge });
+      return;
+    }
     
-    console.log('Starting submission process...');
+    console.log('=== STARTING SUBMISSION PROCESS ===');
+    console.log('Challenge type:', challenge.challenge_type);
+    console.log('User ID:', user.id);
+    console.log('Challenge ID:', challenge.id);
+    
     setSubmitting(true);
     setError(null);
     setResult(null);
@@ -66,31 +73,96 @@ const ChallengePage: React.FC = () => {
       let submitResult;
       
       if (challenge.challenge_type === 'system_design') {
-        console.log('Submitting system design challenge with canvas data:', canvasData);
+        console.log('=== SYSTEM DESIGN SUBMISSION ===');
+        console.log('Canvas data exists:', !!canvasData);
+        console.log('Canvas elements count:', canvasData?.elements?.length || 0);
+        console.log('Canvas data:', canvasData);
+        
+        if (!canvasData || !canvasData.elements || canvasData.elements.length === 0) {
+          console.log('❌ No canvas data - showing error');
+          setResult({
+            success: false,
+            message: 'Please create a system design using the drawing canvas before submitting.'
+          });
+          return;
+        }
+        
+        console.log('✅ Canvas data valid - calling submitChallenge API');
         submitResult = await submitChallenge(user.id, challenge.id, '', canvasData);
+        console.log('✅ API call completed:', submitResult);
+        
       } else if (challenge.challenge_type === 'code_review') {
-        console.log('Submitting code review challenge with annotations:', codeReviewAnnotations);
+        console.log('=== CODE REVIEW SUBMISSION ===');
+        console.log('Annotations count:', codeReviewAnnotations.length);
+        console.log('Annotations:', codeReviewAnnotations);
+        
+        if (codeReviewAnnotations.length === 0) {
+          console.log('❌ No annotations - showing error');
+          setResult({
+            success: false,
+            message: 'Please identify at least one issue in the code before submitting.'
+          });
+          return;
+        }
+        
+        console.log('✅ Annotations valid - calling submitChallenge API');
         submitResult = await submitChallenge(user.id, challenge.id, '', undefined, codeReviewAnnotations);
+        console.log('✅ API call completed:', submitResult);
+        
       } else {
-        console.log('Submitting coding challenge with code:', code);
+        console.log('=== CODING CHALLENGE SUBMISSION ===');
+        console.log('Code length:', code.length);
+        console.log('Code preview:', code.substring(0, 100) + '...');
+        
+        if (!code.trim()) {
+          console.log('❌ No code - showing error');
+          setResult({
+            success: false,
+            message: 'Please write some code before submitting.'
+          });
+          return;
+        }
+        
+        console.log('✅ Code valid - calling submitChallenge API');
         submitResult = await submitChallenge(user.id, challenge.id, code);
+        console.log('✅ API call completed:', submitResult);
       }
       
-      console.log('Submit result:', submitResult);
+      console.log('=== SUBMISSION RESULT ===');
+      console.log('Success:', submitResult.success);
+      console.log('Message:', submitResult.message);
+      console.log('Full result:', submitResult);
+      
       setResult(submitResult);
       
       if (submitResult.success) {
-        console.log('Submission successful, navigating to solutions page in 2 seconds...');
-        // Navigate to solutions page after successful submission
+        console.log('🎉 Submission successful! Setting up navigation...');
+        
+        // Show success message immediately
+        setResult({
+          ...submitResult,
+          showNavigation: true
+        });
+        
+        // Navigate to solutions page after 2 seconds
         setTimeout(() => {
-          console.log('Navigating to solutions page...');
+          console.log('🚀 Navigating to solutions page...');
           navigate(`/solutions/${challenge.id}`);
         }, 2000);
+      } else {
+        console.log('❌ Submission failed:', submitResult.message);
       }
-    } catch (err) {
-      console.error('Submission error:', err);
-      setError('Failed to submit solution');
+      
+    } catch (err: any) {
+      console.error('💥 SUBMISSION ERROR:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      setError(`Failed to submit solution: ${err.message}`);
     } finally {
+      console.log('=== SUBMISSION PROCESS COMPLETE ===');
       setSubmitting(false);
     }
   };
@@ -102,13 +174,43 @@ const ChallengePage: React.FC = () => {
   };
 
   const handleCanvasSave = (data: CanvasData) => {
-    console.log('Canvas data saved:', data);
+    console.log('📝 Canvas data saved:', data);
+    console.log('Elements count:', data.elements?.length || 0);
     setCanvasData(data);
   };
 
   const handleCodeReviewSubmit = (annotations: any[], timeSpent: number) => {
-    console.log('Code review annotations received:', annotations);
+    console.log('📝 Code review annotations received:', annotations);
+    console.log('Time spent:', timeSpent);
     setCodeReviewAnnotations(annotations);
+  };
+
+  const canSubmit = () => {
+    if (!user) {
+      console.log('Cannot submit: no user');
+      return false;
+    }
+    
+    if (isSystemDesign) {
+      const canSubmitDesign = canvasData && canvasData.elements && canvasData.elements.length > 0;
+      console.log('Can submit system design:', canSubmitDesign, {
+        hasCanvasData: !!canvasData,
+        elementsCount: canvasData?.elements?.length || 0
+      });
+      return canSubmitDesign;
+    } else if (isCodeReview) {
+      const canSubmitReview = codeReviewAnnotations.length > 0;
+      console.log('Can submit code review:', canSubmitReview, {
+        annotationsCount: codeReviewAnnotations.length
+      });
+      return canSubmitReview;
+    } else {
+      const canSubmitCode = code.trim() !== '';
+      console.log('Can submit code:', canSubmitCode, {
+        codeLength: code.length
+      });
+      return canSubmitCode;
+    }
   };
 
   if (loading) {
@@ -169,18 +271,6 @@ const ChallengePage: React.FC = () => {
     if (isSystemDesign) return 'System Design';
     if (isCodeReview) return 'Code Review';
     return 'Coding';
-  };
-
-  const canSubmit = () => {
-    if (!user) return false;
-    
-    if (isSystemDesign) {
-      return canvasData && canvasData.elements && canvasData.elements.length > 0;
-    } else if (isCodeReview) {
-      return codeReviewAnnotations.length > 0;
-    } else {
-      return code.trim() !== '';
-    }
   };
 
   return (
@@ -245,7 +335,12 @@ const ChallengePage: React.FC = () => {
                   isLoading={submitting}
                   disabled={submitting || !canSubmit()}
                 >
-                  {user ? 'Submit Code Review' : 'Sign in to Submit'}
+                  {submitting 
+                    ? 'Submitting Review...'
+                    : user 
+                      ? 'Submit Code Review' 
+                      : 'Sign in to Submit'
+                  }
                 </Button>
               </div>
             </div>
@@ -297,9 +392,9 @@ const ChallengePage: React.FC = () => {
                     disabled={submitting || !canSubmit()}
                   >
                     {submitting 
-                      ? (isSystemDesign ? 'Saving Design...' : isCodeReview ? 'Submitting Review...' : 'Running Tests...')
+                      ? (isSystemDesign ? 'Saving Design...' : 'Running Tests...')
                       : user 
-                        ? (isSystemDesign ? 'Submit Design' : isCodeReview ? 'Submit Review' : 'Submit Solution') 
+                        ? (isSystemDesign ? 'Submit Design' : 'Submit Solution') 
                         : 'Sign in to Submit'
                     }
                   </Button>
@@ -388,22 +483,22 @@ const ChallengePage: React.FC = () => {
                           {error || result.message}
                         </p>
                         
-                        {result?.success && (
-                          <div className="mt-3 flex items-center gap-2">
+                        {result?.success && result?.showNavigation && (
+                          <div className="mt-4 flex items-center gap-3">
                             <Button
                               size="sm"
                               onClick={() => navigate(`/solutions/${challenge.id}`)}
                               leftIcon={<BookOpen size={16} />}
                             >
-                              View Solutions
+                              View Solutions Now
                             </Button>
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              Redirecting in 2 seconds...
+                            <span className="text-sm text-success-600 dark:text-success-400">
+                              Auto-redirecting in 2 seconds...
                             </span>
                           </div>
                         )}
                         
-                        {result?.failedTests && !result.isSystemDesign && !result.isCodeReview && (
+                        {result?.failedTests && !isSystemDesign && !isCodeReview && (
                           <div className="mt-4 space-y-3">
                             {result.failedTests.map((test: any, index: number) => (
                               <div key={index} className="text-sm">
