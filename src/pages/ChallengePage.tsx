@@ -57,76 +57,39 @@ const ChallengePage: React.FC = () => {
   const handleSubmit = async () => {
     if (!user || !challenge) return;
     
+    console.log('Starting submission process...');
     setSubmitting(true);
     setError(null);
     setResult(null);
 
     try {
+      let submitResult;
+      
       if (challenge.challenge_type === 'system_design') {
-        // System design validation and submission
-        const hasElements = canvasData && canvasData.elements && canvasData.elements.length > 0;
-        
-        if (hasElements) {
-          // Submit to backend
-          const submitResult = await submitChallenge(user.id, challenge.id, '', canvasData);
-          setResult({
-            success: true,
-            message: 'System design submitted successfully! Your architecture has been saved.',
-            isSystemDesign: true
-          });
-          
-          // Navigate to solutions page after successful submission
-          setTimeout(() => {
-            navigate(`/solutions/${challenge.id}`);
-          }, 2000);
-        } else {
-          setResult({
-            success: false,
-            message: 'Please create a system design using the drawing canvas before submitting.',
-            isSystemDesign: true
-          });
-        }
+        console.log('Submitting system design challenge with canvas data:', canvasData);
+        submitResult = await submitChallenge(user.id, challenge.id, '', canvasData);
       } else if (challenge.challenge_type === 'code_review') {
-        // Code review validation and submission
-        const hasAnnotations = codeReviewAnnotations.length > 0;
-        
-        if (hasAnnotations) {
-          // Submit to backend
-          const submitResult = await submitChallenge(user.id, challenge.id, '', undefined, codeReviewAnnotations);
-          setResult({
-            success: true,
-            message: `Code review submitted successfully! You identified ${codeReviewAnnotations.length} issues.`,
-            isCodeReview: true,
-            annotationsCount: codeReviewAnnotations.length
-          });
-          
-          // Navigate to solutions page after successful submission
-          setTimeout(() => {
-            navigate(`/solutions/${challenge.id}`);
-          }, 2000);
-        } else {
-          setResult({
-            success: false,
-            message: 'Please identify at least one issue in the code before submitting.',
-            isCodeReview: true,
-            annotationsCount: 0
-          });
-        }
+        console.log('Submitting code review challenge with annotations:', codeReviewAnnotations);
+        submitResult = await submitChallenge(user.id, challenge.id, '', undefined, codeReviewAnnotations);
       } else {
-        // Regular coding challenge
-        const result = await submitChallenge(user.id, challenge.id, code);
-        setResult(result);
-        
-        if (result.success) {
-          // Navigate to solutions page after successful submission
-          setTimeout(() => {
-            navigate(`/solutions/${challenge.id}`);
-          }, 2000);
-        }
+        console.log('Submitting coding challenge with code:', code);
+        submitResult = await submitChallenge(user.id, challenge.id, code);
+      }
+      
+      console.log('Submit result:', submitResult);
+      setResult(submitResult);
+      
+      if (submitResult.success) {
+        console.log('Submission successful, navigating to solutions page in 2 seconds...');
+        // Navigate to solutions page after successful submission
+        setTimeout(() => {
+          console.log('Navigating to solutions page...');
+          navigate(`/solutions/${challenge.id}`);
+        }, 2000);
       }
     } catch (err) {
+      console.error('Submission error:', err);
       setError('Failed to submit solution');
-      console.error(err);
     } finally {
       setSubmitting(false);
     }
@@ -139,12 +102,13 @@ const ChallengePage: React.FC = () => {
   };
 
   const handleCanvasSave = (data: CanvasData) => {
+    console.log('Canvas data saved:', data);
     setCanvasData(data);
   };
 
   const handleCodeReviewSubmit = (annotations: any[], timeSpent: number) => {
+    console.log('Code review annotations received:', annotations);
     setCodeReviewAnnotations(annotations);
-    console.log('Code review completed:', { annotations, timeSpent });
   };
 
   if (loading) {
@@ -207,6 +171,18 @@ const ChallengePage: React.FC = () => {
     return 'Coding';
   };
 
+  const canSubmit = () => {
+    if (!user) return false;
+    
+    if (isSystemDesign) {
+      return canvasData && canvasData.elements && canvasData.elements.length > 0;
+    } else if (isCodeReview) {
+      return codeReviewAnnotations.length > 0;
+    } else {
+      return code.trim() !== '';
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -267,7 +243,7 @@ const ChallengePage: React.FC = () => {
                 <Button
                   onClick={handleSubmit}
                   isLoading={submitting}
-                  disabled={submitting || !user || codeReviewAnnotations.length === 0}
+                  disabled={submitting || !canSubmit()}
                 >
                   {user ? 'Submit Code Review' : 'Sign in to Submit'}
                 </Button>
@@ -318,9 +294,14 @@ const ChallengePage: React.FC = () => {
                   <Button
                     onClick={handleSubmit}
                     isLoading={submitting}
-                    disabled={submitting || !user}
+                    disabled={submitting || !canSubmit()}
                   >
-                    {user ? (isSystemDesign ? 'Submit Design' : 'Submit Solution') : 'Sign in to Submit'}
+                    {submitting 
+                      ? (isSystemDesign ? 'Saving Design...' : isCodeReview ? 'Submitting Review...' : 'Running Tests...')
+                      : user 
+                        ? (isSystemDesign ? 'Submit Design' : isCodeReview ? 'Submit Review' : 'Submit Solution') 
+                        : 'Sign in to Submit'
+                    }
                   </Button>
                 </div>
               </div>

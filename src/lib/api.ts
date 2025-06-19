@@ -187,10 +187,12 @@ export async function getRecommendedChallenges(userId: string, limit: number = 3
 export async function submitChallenge(
   userId: string,
   challengeId: string,
-  code: string,
+  code: string = '',
   canvasData?: CanvasData,
   codeReviewAnnotations?: any[]
 ): Promise<{ success: boolean; message: string; failedTests?: any[] }> {
+  console.log('Submitting challenge:', { userId, challengeId, hasCanvasData: !!canvasData, hasCode: !!code, hasAnnotations: !!codeReviewAnnotations });
+  
   // First, get the challenge to access test cases and solution
   const challenge = await getChallenge(challengeId);
   
@@ -211,6 +213,8 @@ export async function submitChallenge(
     if (challenge.challenge_type === 'system_design') {
       // For system design challenges, check if canvas has elements
       allTestsPassed = canvasData && canvasData.elements && canvasData.elements.length > 0;
+      console.log('System design validation:', { hasCanvasData: !!canvasData, hasElements: canvasData?.elements?.length || 0, allTestsPassed });
+      
       if (!allTestsPassed) {
         return {
           success: false,
@@ -220,6 +224,8 @@ export async function submitChallenge(
     } else if (challenge.challenge_type === 'code_review') {
       // For code review challenges, check if annotations were provided
       allTestsPassed = codeReviewAnnotations && codeReviewAnnotations.length > 0;
+      console.log('Code review validation:', { hasAnnotations: !!codeReviewAnnotations, annotationCount: codeReviewAnnotations?.length || 0, allTestsPassed });
+      
       if (!allTestsPassed) {
         return {
           success: false,
@@ -230,6 +236,7 @@ export async function submitChallenge(
       // Run test cases for coding challenges
       testResults = await runTests(code, challenge.test_cases);
       allTestsPassed = testResults.every(result => result.passed);
+      console.log('Coding challenge validation:', { testResults, allTestsPassed });
     }
 
     // Update user progress
@@ -238,21 +245,34 @@ export async function submitChallenge(
       challenge_id: challengeId,
       status: allTestsPassed ? 'completed' : 'attempted',
       attempts,
-      last_submission: code,
+      last_submission: code || '',
       completed_at: allTestsPassed ? new Date().toISOString() : null
     };
 
     // Add canvas data for system design challenges
     if (challenge.challenge_type === 'system_design' && canvasData) {
       progressUpdate.canvas_submission = canvasData;
+      console.log('Adding canvas submission to progress update');
     }
 
     // Add code review annotations for code review challenges
     if (challenge.challenge_type === 'code_review' && codeReviewAnnotations) {
       progressUpdate.canvas_submission = { annotations: codeReviewAnnotations };
+      console.log('Adding code review annotations to progress update');
     }
 
-    await supabase.from('user_progress').upsert(progressUpdate);
+    console.log('Upserting user progress:', progressUpdate);
+    
+    const { error: upsertError } = await supabase
+      .from('user_progress')
+      .upsert(progressUpdate);
+
+    if (upsertError) {
+      console.error('Error upserting user progress:', upsertError);
+      throw upsertError;
+    }
+
+    console.log('Successfully submitted challenge');
 
     return {
       success: allTestsPassed,
@@ -266,10 +286,10 @@ export async function submitChallenge(
       failedTests: allTestsPassed ? undefined : testResults.filter(r => !r.passed)
     };
   } catch (error) {
-    console.error('Error running tests:', error);
+    console.error('Error running tests or submitting:', error);
     return {
       success: false,
-      message: 'Error running tests. Please try again.'
+      message: 'Error submitting challenge. Please try again.'
     };
   }
 }
@@ -373,6 +393,8 @@ export async function updateDiscussionLikes(discussionId: string, increment: boo
 
 // Check if user has access to solutions
 export async function checkSolutionAccess(userId: string, challengeId: string): Promise<boolean> {
+  console.log('Checking solution access for user:', userId, 'challenge:', challengeId);
+  
   const { data, error } = await supabase
     .from('user_progress')
     .select('status, canvas_submission, last_submission')
@@ -381,14 +403,19 @@ export async function checkSolutionAccess(userId: string, challengeId: string): 
     .single();
 
   if (error) {
-    console.log('No user progress found for challenge:', challengeId);
+    console.log('No user progress found for challenge:', challengeId, error);
     return false;
   }
   
+  console.log('User progress data:', data);
+  
   // User has access if they've completed the challenge or have any submission
-  return data && (
+  const hasAccess = data && (
     data.status === 'completed' || 
     data.canvas_submission || 
     (data.last_submission && data.last_submission.trim() !== '')
   );
+  
+  console.log('Solution access granted:', hasAccess);
+  return hasAccess;
 }
