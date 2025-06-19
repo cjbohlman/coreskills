@@ -49,12 +49,27 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
+  // Helper function to trigger save
+  const triggerSave = useCallback((elementsToSave: DrawingElement[]) => {
+    if (onSave) {
+      const canvasData: CanvasData = {
+        elements: elementsToSave,
+        canvasWidth,
+        canvasHeight
+      };
+      console.log('📝 Canvas data saved (this is NOT submission):', canvasData);
+      onSave(canvasData);
+    }
+  }, [onSave]);
+
   const undo = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
     if (historyIndex > 0) {
+      const newElements = [...history[historyIndex - 1]];
       setHistoryIndex(historyIndex - 1);
-      setElements([...history[historyIndex - 1]]);
+      setElements(newElements);
+      triggerSave(newElements);
     }
   };
 
@@ -62,8 +77,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     e?.preventDefault();
     e?.stopPropagation();
     if (historyIndex < history.length - 1) {
+      const newElements = [...history[historyIndex + 1]];
       setHistoryIndex(historyIndex + 1);
-      setElements([...history[historyIndex + 1]]);
+      setElements(newElements);
+      triggerSave(newElements);
     }
   };
 
@@ -303,30 +320,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const newElements = [...elements, newElement];
       setElements(newElements);
       addToHistory(newElements);
-      
-      // Trigger onSave callback immediately when element is added
-      if (onSave) {
-        const canvasData: CanvasData = {
-          elements: newElements,
-          canvasWidth,
-          canvasHeight
-        };
-        console.log('🎨 Canvas updated - calling onSave:', canvasData);
-        onSave(canvasData);
-      }
+      triggerSave(newElements);
     } else if (currentTool === 'select' && selectedElement) {
       addToHistory(elements);
-      
-      // Trigger onSave callback when element is moved
-      if (onSave) {
-        const canvasData: CanvasData = {
-          elements,
-          canvasWidth,
-          canvasHeight
-        };
-        console.log('🎨 Canvas updated (move) - calling onSave:', canvasData);
-        onSave(canvasData);
-      }
+      triggerSave(elements);
     }
 
     setIsDrawing(false);
@@ -350,17 +347,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const newElements = [...elements, newElement];
       setElements(newElements);
       addToHistory(newElements);
-      
-      // Trigger onSave callback when text is added
-      if (onSave) {
-        const canvasData: CanvasData = {
-          elements: newElements,
-          canvasWidth,
-          canvasHeight
-        };
-        console.log('🎨 Canvas updated (text) - calling onSave:', canvasData);
-        onSave(canvasData);
-      }
+      triggerSave(newElements);
     }
 
     setTextInput('');
@@ -376,17 +363,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       setElements(newElements);
       addToHistory(newElements);
       setSelectedElement(null);
-      
-      // Trigger onSave callback when element is deleted
-      if (onSave) {
-        const canvasData: CanvasData = {
-          elements: newElements,
-          canvasWidth,
-          canvasHeight
-        };
-        console.log('🎨 Canvas updated (delete) - calling onSave:', canvasData);
-        onSave(canvasData);
-      }
+      triggerSave(newElements);
     }
   };
 
@@ -394,33 +371,18 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     e?.preventDefault();
     e?.stopPropagation();
     
-    setElements([]);
-    addToHistory([]);
+    const newElements: DrawingElement[] = [];
+    setElements(newElements);
+    addToHistory(newElements);
     setSelectedElement(null);
-    
-    // Trigger onSave callback when canvas is cleared
-    if (onSave) {
-      const canvasData: CanvasData = {
-        elements: [],
-        canvasWidth,
-        canvasHeight
-      };
-      console.log('🎨 Canvas cleared - calling onSave:', canvasData);
-      onSave(canvasData);
-    }
+    triggerSave(newElements);
   };
 
   const saveCanvas = (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
     
-    const canvasData: CanvasData = {
-      elements,
-      canvasWidth,
-      canvasHeight
-    };
-    console.log('🎨 Manual save - calling onSave:', canvasData);
-    onSave?.(canvasData);
+    triggerSave(elements);
   };
 
   const exportAsImage = (e?: React.MouseEvent) => {
@@ -433,19 +395,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     link.href = canvas.toDataURL();
     link.click();
   };
-
-  // Auto-save when elements change
-  useEffect(() => {
-    if (onSave && elements.length > 0) {
-      const canvasData: CanvasData = {
-        elements,
-        canvasWidth,
-        canvasHeight
-      };
-      console.log('🎨 Auto-save triggered - calling onSave:', canvasData);
-      onSave(canvasData);
-    }
-  }, [elements, onSave]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
