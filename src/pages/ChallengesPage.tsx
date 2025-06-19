@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Search, Bug, Code2, Network, Layout as LayoutIcon, CheckCircle2, Lock } from 'lucide-react';
+import { Search, Bug, Code2, Network, Layout as LayoutIcon, CheckCircle2, Lock, Search as SearchIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LearningPath, Challenge } from '../types';
 import { getLearningPaths } from '../lib/api';
@@ -42,6 +42,8 @@ const ChallengesPage: React.FC = () => {
         return <Network className="w-6 h-6" />;
       case 'layout':
         return <LayoutIcon className="w-6 h-6" />;
+      case 'search':
+        return <SearchIcon className="w-6 h-6" />;
       default:
         return <Code2 className="w-6 h-6" />;
     }
@@ -51,6 +53,8 @@ const ChallengesPage: React.FC = () => {
     switch (challengeType) {
       case 'system_design':
         return <LayoutIcon className="w-4 h-4" />;
+      case 'code_review':
+        return <SearchIcon className="w-4 h-4" />;
       case 'coding':
       default:
         return <Code2 className="w-4 h-4" />;
@@ -61,9 +65,23 @@ const ChallengesPage: React.FC = () => {
     switch (challengeType) {
       case 'system_design':
         return 'System Design';
+      case 'code_review':
+        return 'Code Review';
       case 'coding':
       default:
         return 'Coding';
+    }
+  };
+
+  const getChallengeActionText = (challengeType: string) => {
+    switch (challengeType) {
+      case 'system_design':
+        return 'Design System';
+      case 'code_review':
+        return 'Review Code';
+      case 'coding':
+      default:
+        return 'Start Challenge';
     }
   };
 
@@ -94,7 +112,7 @@ const ChallengesPage: React.FC = () => {
               Learning Paths
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Master AI-proof programming skills through hands-on challenges and system design exercises.
+              Master AI-proof programming skills through hands-on challenges, system design exercises, and code review practice.
             </p>
           </div>
 
@@ -179,7 +197,7 @@ const ChallengesPage: React.FC = () => {
                             {user ? (
                               <Link to={`/challenges/${challenge.id}`}>
                                 <Button>
-                                  {challenge.challenge_type === 'system_design' ? 'Design System' : 'Start Challenge'}
+                                  {getChallengeActionText(challenge.challenge_type)}
                                 </Button>
                               </Link>
                             ) : (

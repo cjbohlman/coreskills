@@ -188,7 +188,8 @@ export async function submitChallenge(
   userId: string,
   challengeId: string,
   code: string,
-  canvasData?: CanvasData
+  canvasData?: CanvasData,
+  codeReviewAnnotations?: any[]
 ): Promise<{ success: boolean; message: string; failedTests?: any[] }> {
   // First, get the challenge to access test cases and solution
   const challenge = await getChallenge(challengeId);
@@ -216,6 +217,15 @@ export async function submitChallenge(
           message: 'Please create a system design using the drawing canvas before submitting.'
         };
       }
+    } else if (challenge.challenge_type === 'code_review') {
+      // For code review challenges, check if annotations were provided
+      allTestsPassed = codeReviewAnnotations && codeReviewAnnotations.length > 0;
+      if (!allTestsPassed) {
+        return {
+          success: false,
+          message: 'Please identify at least one issue in the code before submitting.'
+        };
+      }
     } else {
       // Run test cases for coding challenges
       testResults = await runTests(code, challenge.test_cases);
@@ -237,6 +247,11 @@ export async function submitChallenge(
       progressUpdate.canvas_submission = canvasData;
     }
 
+    // Add code review annotations for code review challenges
+    if (challenge.challenge_type === 'code_review' && codeReviewAnnotations) {
+      progressUpdate.canvas_submission = { annotations: codeReviewAnnotations };
+    }
+
     await supabase.from('user_progress').upsert(progressUpdate);
 
     return {
@@ -244,6 +259,8 @@ export async function submitChallenge(
       message: allTestsPassed 
         ? (challenge.challenge_type === 'system_design' 
            ? 'System design submitted successfully!' 
+           : challenge.challenge_type === 'code_review'
+           ? `Code review submitted successfully! You identified ${codeReviewAnnotations?.length || 0} issues.`
            : 'All tests passed! Challenge completed.')
         : 'Some tests failed. Keep trying!',
       failedTests: allTestsPassed ? undefined : testResults.filter(r => !r.passed)

@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { DrawingCanvas } from '../components/drawing/DrawingCanvas';
+import { CodeReviewInterface } from '../components/codeReview/CodeReviewInterface';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { Challenge, CanvasData } from '../types';
 import { getChallenge, submitChallenge } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { AlertCircle, CheckCircle, RefreshCw, ArrowLeft, Layout as LayoutIcon, Code2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, ArrowLeft, Layout as LayoutIcon, Code2, Search } from 'lucide-react';
 
 const ChallengePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ const ChallengePage: React.FC = () => {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [code, setCode] = useState('');
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
+  const [codeReviewAnnotations, setCodeReviewAnnotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +62,8 @@ const ChallengePage: React.FC = () => {
     setResult(null);
 
     try {
-      // For system design challenges, we'll create a simple validation
       if (challenge.challenge_type === 'system_design') {
-        // Simple validation for system design - check if canvas has elements
+        // System design validation
         const hasElements = canvasData && canvasData.elements && canvasData.elements.length > 0;
         
         setResult({
@@ -74,9 +75,23 @@ const ChallengePage: React.FC = () => {
         });
 
         if (hasElements) {
-          // Save the canvas data to user progress
-          // This would typically be done through the API
           console.log('Saving canvas data:', canvasData);
+        }
+      } else if (challenge.challenge_type === 'code_review') {
+        // Code review validation
+        const hasAnnotations = codeReviewAnnotations.length > 0;
+        
+        setResult({
+          success: hasAnnotations,
+          message: hasAnnotations 
+            ? `Code review submitted successfully! You identified ${codeReviewAnnotations.length} issues.` 
+            : 'Please identify at least one issue in the code before submitting.',
+          isCodeReview: true,
+          annotationsCount: codeReviewAnnotations.length
+        });
+
+        if (hasAnnotations) {
+          console.log('Saving code review annotations:', codeReviewAnnotations);
         }
       } else {
         // Regular coding challenge
@@ -99,6 +114,11 @@ const ChallengePage: React.FC = () => {
 
   const handleCanvasSave = (data: CanvasData) => {
     setCanvasData(data);
+  };
+
+  const handleCodeReviewSubmit = (annotations: any[], timeSpent: number) => {
+    setCodeReviewAnnotations(annotations);
+    console.log('Code review completed:', { annotations, timeSpent });
   };
 
   if (loading) {
@@ -147,6 +167,19 @@ const ChallengePage: React.FC = () => {
   }
 
   const isSystemDesign = challenge.challenge_type === 'system_design';
+  const isCodeReview = challenge.challenge_type === 'code_review';
+
+  const getChallengeTypeIcon = () => {
+    if (isSystemDesign) return <LayoutIcon size={16} />;
+    if (isCodeReview) return <Search size={16} />;
+    return <Code2 size={16} />;
+  };
+
+  const getChallengeTypeLabel = () => {
+    if (isSystemDesign) return 'System Design';
+    if (isCodeReview) return 'Code Review';
+    return 'Coding';
+  };
 
   return (
     <Layout>
@@ -168,8 +201,8 @@ const ChallengePage: React.FC = () => {
                     {challenge.title}
                   </h1>
                   <span className="flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                    {isSystemDesign ? <LayoutIcon size={16} /> : <Code2 size={16} />}
-                    {isSystemDesign ? 'System Design' : 'Coding'}
+                    {getChallengeTypeIcon()}
+                    {getChallengeTypeLabel()}
                   </span>
                 </div>
               </div>
@@ -187,7 +220,7 @@ const ChallengePage: React.FC = () => {
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              {isSystemDesign ? 'Design Requirements' : 'Problem Description'}
+              {isSystemDesign ? 'Design Requirements' : isCodeReview ? 'Code Review Instructions' : 'Problem Description'}
             </h2>
             <div className="prose prose-gray dark:prose-invert max-w-none">
               <pre className="whitespace-pre-wrap text-gray-600 dark:text-gray-300 font-sans">
@@ -196,168 +229,189 @@ const ChallengePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          {isCodeReview ? (
+            // Code Review Interface
             <div className="space-y-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {isSystemDesign ? 'System Design Canvas' : 'Code Editor'}
-                    </h3>
-                    {!isSystemDesign && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={resetCode}
-                        leftIcon={<RefreshCw size={16} />}
-                      >
-                        Reset Code
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4">
-                  {isSystemDesign ? (
-                    <DrawingCanvas
-                      onSave={handleCanvasSave}
-                      initialData={canvasData || undefined}
-                    />
-                  ) : (
-                    <CodeMirror
-                      value={code}
-                      height="400px"
-                      theme={vscodeDark}
-                      extensions={[javascript()]}
-                      onChange={(value) => setCode(value)}
-                      className="border border-gray-200 dark:border-gray-700 rounded-md"
-                    />
-                  )}
-                </div>
-              </div>
-
+              <CodeReviewInterface
+                challenge={challenge}
+                onSubmit={handleCodeReviewSubmit}
+              />
+              
               <div className="flex justify-end">
                 <Button
                   onClick={handleSubmit}
                   isLoading={submitting}
-                  disabled={submitting || !user}
+                  disabled={submitting || !user || codeReviewAnnotations.length === 0}
                 >
-                  {user ? (isSystemDesign ? 'Submit Design' : 'Submit Solution') : 'Sign in to Submit'}
+                  {user ? 'Submit Code Review' : 'Sign in to Submit'}
                 </Button>
               </div>
             </div>
-
-            <div className="space-y-4">
-              {!isSystemDesign && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                    Test Cases
-                  </h3>
-                  <div className="space-y-4">
-                    {challenge.test_cases.map((testCase: any, index: number) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                      >
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Test {index + 1}: {testCase.description}
-                        </p>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          <p>Input: {JSON.stringify(testCase.input)}</p>
-                          <p>Expected: {JSON.stringify(testCase.expected_output)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {isSystemDesign && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                    Design Guidelines
-                  </h3>
-                  <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>Use rectangles to represent services and databases</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>Use arrows to show data flow and communication</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>Add text labels to identify components clearly</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>Consider scalability, reliability, and performance</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
-                      <p>Include load balancers, caches, and databases</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(error || result) && (
-                <div className={`p-6 rounded-lg ${
-                  error
-                    ? 'bg-error-50 dark:bg-error-900/30'
-                    : result.success
-                    ? 'bg-success-50 dark:bg-success-900/30'
-                    : 'bg-warning-50 dark:bg-warning-900/30'
-                }`}>
-                  <div className="flex items-start">
-                    {error ? (
-                      <AlertCircle className="h-5 w-5 text-error-500 dark:text-error-400 mr-3" />
-                    ) : result.success ? (
-                      <CheckCircle className="h-5 w-5 text-success-500 dark:text-success-400 mr-3" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 text-warning-500 dark:text-warning-400 mr-3" />
-                    )}
-                    <div>
-                      <p className={`font-medium ${
-                        error
-                          ? 'text-error-800 dark:text-error-200'
-                          : result.success
-                          ? 'text-success-800 dark:text-success-200'
-                          : 'text-warning-800 dark:text-warning-200'
-                      }`}>
-                        {error || result.message}
-                      </p>
-                      {result?.failedTests && !result.isSystemDesign && (
-                        <div className="mt-4 space-y-3">
-                          {result.failedTests.map((test: any, index: number) => (
-                            <div key={index} className="text-sm">
-                              <p className="font-medium text-gray-700 dark:text-gray-300">
-                                Failed Test {index + 1}: {test.description}
-                              </p>
-                              <p className="text-gray-600 dark:text-gray-400">
-                                Input: {JSON.stringify(test.input)}
-                              </p>
-                              <p className="text-gray-600 dark:text-gray-400">
-                                Expected: {JSON.stringify(test.expected)}
-                              </p>
-                              <p className="text-gray-600 dark:text-gray-400">
-                                Received: {JSON.stringify(test.received) ? JSON.stringify(test.received) : 'No output received' }
-                              </p>
-                              {test.error && (
-                                <p className="text-error-600 dark:text-error-400">
-                                  Error: {test.error}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+          ) : (
+            // Regular Challenge Interface
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {isSystemDesign ? 'System Design Canvas' : 'Code Editor'}
+                      </h3>
+                      {!isSystemDesign && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={resetCode}
+                          leftIcon={<RefreshCw size={16} />}
+                        >
+                          Reset Code
+                        </Button>
                       )}
                     </div>
                   </div>
+                  <div className="p-4">
+                    {isSystemDesign ? (
+                      <DrawingCanvas
+                        onSave={handleCanvasSave}
+                        initialData={canvasData || undefined}
+                      />
+                    ) : (
+                      <CodeMirror
+                        value={code}
+                        height="400px"
+                        theme={vscodeDark}
+                        extensions={[javascript()]}
+                        onChange={(value) => setCode(value)}
+                        className="border border-gray-200 dark:border-gray-700 rounded-md"
+                      />
+                    )}
+                  </div>
                 </div>
-              )}
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSubmit}
+                    isLoading={submitting}
+                    disabled={submitting || !user}
+                  >
+                    {user ? (isSystemDesign ? 'Submit Design' : 'Submit Solution') : 'Sign in to Submit'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {!isSystemDesign && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      Test Cases
+                    </h3>
+                    <div className="space-y-4">
+                      {challenge.test_cases.map((testCase: any, index: number) => (
+                        <div
+                          key={index}
+                          className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                        >
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Test {index + 1}: {testCase.description}
+                          </p>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            <p>Input: {JSON.stringify(testCase.input)}</p>
+                            <p>Expected: {JSON.stringify(testCase.expected_output)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isSystemDesign && (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                      Design Guidelines
+                    </h3>
+                    <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p>Use rectangles to represent services and databases</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p>Use arrows to show data flow and communication</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p>Add text labels to identify components clearly</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p>Consider scalability, reliability, and performance</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <p>Include load balancers, caches, and databases</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(error || result) && (
+                  <div className={`p-6 rounded-lg ${
+                    error
+                      ? 'bg-error-50 dark:bg-error-900/30'
+                      : result.success
+                      ? 'bg-success-50 dark:bg-success-900/30'
+                      : 'bg-warning-50 dark:bg-warning-900/30'
+                  }`}>
+                    <div className="flex items-start">
+                      {error ? (
+                        <AlertCircle className="h-5 w-5 text-error-500 dark:text-error-400 mr-3" />
+                      ) : result.success ? (
+                        <CheckCircle className="h-5 w-5 text-success-500 dark:text-success-400 mr-3" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-warning-500 dark:text-warning-400 mr-3" />
+                      )}
+                      <div>
+                        <p className={`font-medium ${
+                          error
+                            ? 'text-error-800 dark:text-error-200'
+                            : result.success
+                            ? 'text-success-800 dark:text-success-200'
+                            : 'text-warning-800 dark:text-warning-200'
+                        }`}>
+                          {error || result.message}
+                        </p>
+                        {result?.failedTests && !result.isSystemDesign && !result.isCodeReview && (
+                          <div className="mt-4 space-y-3">
+                            {result.failedTests.map((test: any, index: number) => (
+                              <div key={index} className="text-sm">
+                                <p className="font-medium text-gray-700 dark:text-gray-300">
+                                  Failed Test {index + 1}: {test.description}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  Input: {JSON.stringify(test.input)}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  Expected: {JSON.stringify(test.expected)}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  Received: {JSON.stringify(test.received) ? JSON.stringify(test.received) : 'No output received' }
+                                </p>
+                                {test.error && (
+                                  <p className="text-error-600 dark:text-error-400">
+                                    Error: {test.error}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </Layout>
