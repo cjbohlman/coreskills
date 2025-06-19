@@ -4,6 +4,7 @@ import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { DrawingCanvas } from '../components/drawing/DrawingCanvas';
 import { CodeReviewInterface } from '../components/codeReview/CodeReviewInterface';
+import { SubmissionDebug } from '../components/debug/SubmissionDebug';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
@@ -32,23 +33,25 @@ const ChallengePage: React.FC = () => {
 
   const loadChallenge = async (challengeId: string) => {
     try {
+      console.log('🔄 Loading challenge:', challengeId);
       const data = await getChallenge(challengeId);
       if (!data) {
         setNotFound(true);
         return;
       }
+      console.log('✅ Challenge loaded:', data);
       setChallenge(data);
       setCode(data.initial_code);
       if (data.canvas_data) {
         setCanvasData(data.canvas_data as CanvasData);
       }
     } catch (err: any) {
+      console.error('❌ Error loading challenge:', err);
       if (err.message?.includes('not found')) {
         setNotFound(true);
       } else {
         setError('Failed to load challenge');
       }
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -346,6 +349,15 @@ const ChallengePage: React.FC = () => {
             </div>
           </div>
 
+          {/* Debug Component - Only show for system design challenges */}
+          {isSystemDesign && (
+            <SubmissionDebug
+              challenge={challenge}
+              canvasData={canvasData}
+              onTestSubmit={handleSubmit}
+            />
+          )}
+
           {isCodeReview ? (
             // Code Review Interface
             <div className="space-y-4">
@@ -488,19 +500,6 @@ const ChallengePage: React.FC = () => {
                       <div className="flex items-start gap-2">
                         <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
                         <p>Include load balancers, caches, and databases</p>
-                      </div>
-                    </div>
-
-                    {/* Debug Info for System Design */}
-                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <h4 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-                        Debug Info (Canvas State)
-                      </h4>
-                      <div className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
-                        <p>Canvas Data Exists: {canvasData ? '✅ Yes' : '❌ No'}</p>
-                        <p>Elements Count: {canvasData?.elements?.length || 0}</p>
-                        <p>Can Submit: {canSubmit() ? '✅ Yes' : '❌ No'}</p>
-                        <p>User Signed In: {user ? '✅ Yes' : '❌ No'}</p>
                       </div>
                     </div>
                   </div>
