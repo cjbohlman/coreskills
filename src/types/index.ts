@@ -21,9 +21,11 @@ export interface Challenge {
   title: string;
   description: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  challenge_type: 'coding' | 'system_design';
   initial_code: string;
   solution_code: string;
   test_cases: TestCase[];
+  canvas_data?: Json;
   path_id: string;
   order_index: number;
   created_at: string;
@@ -41,6 +43,7 @@ export interface UserProgress {
   status: 'attempted' | 'completed';
   attempts: number;
   last_submission: string;
+  canvas_submission?: Json;
   completed_at: string | null;
 }
 
@@ -50,6 +53,7 @@ export interface UserProgressWithChallenge extends UserProgress {
     title: string;
     description: string;
     difficulty: 'easy' | 'medium' | 'hard';
+    challenge_type: 'coding' | 'system_design';
     path_id: string;
     learning_paths?: {
       id: string;
@@ -101,4 +105,27 @@ export interface User {
     full_name?: string;
     avatar_url?: string;
   };
+}
+
+export interface DrawingElement {
+  id: string;
+  type: 'rectangle' | 'circle' | 'arrow' | 'text' | 'line';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+  text?: string;
+  color: string;
+  strokeWidth: number;
+  startX?: number;
+  startY?: number;
+  endX?: number;
+  endY?: number;
+}
+
+export interface CanvasData {
+  elements: DrawingElement[];
+  canvasWidth: number;
+  canvasHeight: number;
 }

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Challenge, UserProgress, LearningPath } from '../types';
+import { Challenge, UserProgress, LearningPath, CanvasData } from '../types';
 
 export async function getLearningPaths(): Promise<LearningPath[]> {
   const { data, error } = await supabase
@@ -55,6 +55,7 @@ export async function getUserProgressWithChallenges(userId: string) {
         title,
         description,
         difficulty,
+        challenge_type,
         path_id,
         learning_paths (
           id,
@@ -88,6 +89,7 @@ export async function getUserStats(userId: string) {
         id,
         title,
         difficulty,
+        challenge_type,
         path_id,
         learning_paths (
           id,
@@ -185,7 +187,8 @@ export async function getRecommendedChallenges(userId: string, limit: number = 3
 export async function submitChallenge(
   userId: string,
   challengeId: string,
-  code: string
+  code: string,
+  canvasData?: CanvasData
 ): Promise<{ success: boolean; message: string; failedTests?: any[] }> {
   // First, get the challenge to access test cases and solution
   const challenge = await getChallenge(challengeId);
@@ -201,24 +204,47 @@ export async function submitChallenge(
   const attempts = (progressData?.attempts || 0) + 1;
 
   try {
-    // Run test cases
-    const testResults = await runTests(code, challenge.test_cases);
-    const allTestsPassed = testResults.every(result => result.passed);
+    let allTestsPassed = false;
+    let testResults: any[] = [];
+
+    if (challenge.challenge_type === 'system_design') {
+      // For system design challenges, check if canvas has elements
+      allTestsPassed = canvasData && canvasData.elements && canvasData.elements.length > 0;
+      if (!allTestsPassed) {
+        return {
+          success: false,
+          message: 'Please create a system design using the drawing canvas before submitting.'
+        };
+      }
+    } else {
+      // Run test cases for coding challenges
+      testResults = await runTests(code, challenge.test_cases);
+      allTestsPassed = testResults.every(result => result.passed);
+    }
 
     // Update user progress
-    await supabase.from('user_progress').upsert({
+    const progressUpdate: any = {
       user_id: userId,
       challenge_id: challengeId,
       status: allTestsPassed ? 'completed' : 'attempted',
       attempts,
       last_submission: code,
       completed_at: allTestsPassed ? new Date().toISOString() : null
-    });
+    };
+
+    // Add canvas data for system design challenges
+    if (challenge.challenge_type === 'system_design' && canvasData) {
+      progressUpdate.canvas_submission = canvasData;
+    }
+
+    await supabase.from('user_progress').upsert(progressUpdate);
 
     return {
       success: allTestsPassed,
       message: allTestsPassed 
-        ? 'All tests passed! Challenge completed.' 
+        ? (challenge.challenge_type === 'system_design' 
+           ? 'System design submitted successfully!' 
+           : 'All tests passed! Challenge completed.')
         : 'Some tests failed. Keep trying!',
       failedTests: allTestsPassed ? undefined : testResults.filter(r => !r.passed)
     };
