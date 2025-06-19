@@ -49,14 +49,18 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
-  const undo = () => {
+  const undo = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (historyIndex > 0) {
       setHistoryIndex(historyIndex - 1);
       setElements([...history[historyIndex - 1]]);
     }
   };
 
-  const redo = () => {
+  const redo = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (historyIndex < history.length - 1) {
       setHistoryIndex(historyIndex + 1);
       setElements([...history[historyIndex + 1]]);
@@ -185,6 +189,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (readOnly) return;
 
     const pos = getMousePos(e);
@@ -214,6 +221,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!isDrawing || readOnly) return;
 
     const pos = getMousePos(e);
@@ -251,6 +261,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!isDrawing || readOnly) return;
 
     const pos = getMousePos(e);
@@ -290,14 +303,39 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const newElements = [...elements, newElement];
       setElements(newElements);
       addToHistory(newElements);
+      
+      // Trigger onSave callback immediately when element is added
+      if (onSave) {
+        const canvasData: CanvasData = {
+          elements: newElements,
+          canvasWidth,
+          canvasHeight
+        };
+        console.log('🎨 Canvas updated - calling onSave:', canvasData);
+        onSave(canvasData);
+      }
     } else if (currentTool === 'select' && selectedElement) {
       addToHistory(elements);
+      
+      // Trigger onSave callback when element is moved
+      if (onSave) {
+        const canvasData: CanvasData = {
+          elements,
+          canvasWidth,
+          canvasHeight
+        };
+        console.log('🎨 Canvas updated (move) - calling onSave:', canvasData);
+        onSave(canvasData);
+      }
     }
 
     setIsDrawing(false);
   };
 
-  const handleTextSubmit = () => {
+  const handleTextSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     if (textInput.trim()) {
       const newElement: DrawingElement = {
         id: Date.now().toString(),
@@ -312,43 +350,102 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const newElements = [...elements, newElement];
       setElements(newElements);
       addToHistory(newElements);
+      
+      // Trigger onSave callback when text is added
+      if (onSave) {
+        const canvasData: CanvasData = {
+          elements: newElements,
+          canvasWidth,
+          canvasHeight
+        };
+        console.log('🎨 Canvas updated (text) - calling onSave:', canvasData);
+        onSave(canvasData);
+      }
     }
 
     setTextInput('');
     setShowTextInput(false);
   };
 
-  const deleteSelected = () => {
+  const deleteSelected = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     if (selectedElement) {
       const newElements = elements.filter(el => el.id !== selectedElement);
       setElements(newElements);
       addToHistory(newElements);
       setSelectedElement(null);
+      
+      // Trigger onSave callback when element is deleted
+      if (onSave) {
+        const canvasData: CanvasData = {
+          elements: newElements,
+          canvasWidth,
+          canvasHeight
+        };
+        console.log('🎨 Canvas updated (delete) - calling onSave:', canvasData);
+        onSave(canvasData);
+      }
     }
   };
 
-  const clearCanvas = () => {
+  const clearCanvas = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     setElements([]);
     addToHistory([]);
     setSelectedElement(null);
+    
+    // Trigger onSave callback when canvas is cleared
+    if (onSave) {
+      const canvasData: CanvasData = {
+        elements: [],
+        canvasWidth,
+        canvasHeight
+      };
+      console.log('🎨 Canvas cleared - calling onSave:', canvasData);
+      onSave(canvasData);
+    }
   };
 
-  const saveCanvas = () => {
+  const saveCanvas = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     const canvasData: CanvasData = {
       elements,
       canvasWidth,
       canvasHeight
     };
+    console.log('🎨 Manual save - calling onSave:', canvasData);
     onSave?.(canvasData);
   };
 
-  const exportAsImage = () => {
+  const exportAsImage = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     const canvas = canvasRef.current!;
     const link = document.createElement('a');
     link.download = 'system-design.png';
     link.href = canvas.toDataURL();
     link.click();
   };
+
+  // Auto-save when elements change
+  useEffect(() => {
+    if (onSave && elements.length > 0) {
+      const canvasData: CanvasData = {
+        elements,
+        canvasWidth,
+        canvasHeight
+      };
+      console.log('🎨 Auto-save triggered - calling onSave:', canvasData);
+      onSave(canvasData);
+    }
+  }, [elements, onSave]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -384,49 +481,79 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         <div className="flex flex-wrap items-center gap-2 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               size="sm"
               variant={currentTool === 'select' ? 'primary' : 'outline'}
-              onClick={() => setCurrentTool('select')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentTool('select');
+              }}
               leftIcon={<Move size={16} />}
             >
               Select
             </Button>
             <Button
+              type="button"
               size="sm"
               variant={currentTool === 'rectangle' ? 'primary' : 'outline'}
-              onClick={() => setCurrentTool('rectangle')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentTool('rectangle');
+              }}
               leftIcon={<Square size={16} />}
             >
               Rectangle
             </Button>
             <Button
+              type="button"
               size="sm"
               variant={currentTool === 'circle' ? 'primary' : 'outline'}
-              onClick={() => setCurrentTool('circle')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentTool('circle');
+              }}
               leftIcon={<Circle size={16} />}
             >
               Circle
             </Button>
             <Button
+              type="button"
               size="sm"
               variant={currentTool === 'arrow' ? 'primary' : 'outline'}
-              onClick={() => setCurrentTool('arrow')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentTool('arrow');
+              }}
               leftIcon={<ArrowRight size={16} />}
             >
               Arrow
             </Button>
             <Button
+              type="button"
               size="sm"
               variant={currentTool === 'line' ? 'primary' : 'outline'}
-              onClick={() => setCurrentTool('line')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentTool('line');
+              }}
               leftIcon={<Minus size={16} />}
             >
               Line
             </Button>
             <Button
+              type="button"
               size="sm"
               variant={currentTool === 'text' ? 'primary' : 'outline'}
-              onClick={() => setCurrentTool('text')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentTool('text');
+              }}
               leftIcon={<Type size={16} />}
             >
               Text
@@ -437,6 +564,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={undo}
@@ -446,6 +574,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               Undo
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={redo}
@@ -455,6 +584,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               Redo
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={deleteSelected}
@@ -464,6 +594,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               Delete
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={clearCanvas}
@@ -477,6 +608,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={exportAsImage}
@@ -486,6 +618,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             </Button>
             {onSave && (
               <Button
+                type="button"
                 size="sm"
                 onClick={saveCanvas}
                 leftIcon={<Upload size={16} />}
@@ -507,6 +640,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onContextMenu={(e) => e.preventDefault()}
         />
       </div>
 
@@ -517,33 +651,45 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               Add Text
             </h3>
-            <input
-              type="text"
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              placeholder="Enter text..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleTextSubmit();
-                if (e.key === 'Escape') setShowTextInput(false);
-              }}
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowTextInput(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleTextSubmit}
-              >
-                Add Text
-              </Button>
-            </div>
+            <form onSubmit={handleTextSubmit}>
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Enter text..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleTextSubmit();
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowTextInput(false);
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowTextInput(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                >
+                  Add Text
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
