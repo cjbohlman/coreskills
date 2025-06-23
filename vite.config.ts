@@ -8,6 +8,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   server: {
+    historyApiFallback: true,
     headers: {
       'Content-Security-Policy': '',
       'X-Frame-Options': 'SAMEORIGIN'
