@@ -91,13 +91,34 @@ const ChallengesPage: React.FC = () => {
     }
   };
 
-  const filteredPaths = paths.map(path => ({
-    ...path,
-    challenges: path.challenges?.filter(challenge =>
+  // Filter paths and challenges based on search query
+  const filteredPaths = paths.map(path => {
+    // Filter challenges within each path
+    const filteredChallenges = path.challenges?.filter(challenge =>
       challenge.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       challenge.description.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  })).filter(path => path.challenges && path.challenges.length > 0);
+    ) || [];
+
+    return {
+      ...path,
+      challenges: filteredChallenges
+    };
+  }).filter(path => {
+    // If there's no search query, show all paths
+    if (!searchQuery.trim()) {
+      return true;
+    }
+    
+    // If there's a search query, show paths that either:
+    // 1. Have matching challenges, OR
+    // 2. Have a matching path title/description
+    const pathMatches = path.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       path.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const hasMatchingChallenges = path.challenges && path.challenges.length > 0;
+    
+    return pathMatches || hasMatchingChallenges;
+  });
 
   if (loading) {
     return (
@@ -200,58 +221,70 @@ const ChallengesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {path.challenges?.map((challenge, index) => (
-                      <div
-                        key={challenge.id}
-                        className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                {index + 1}.
-                              </span>
-                              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                                {challenge.title}
-                              </h3>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  challenge.difficulty === 'easy'
-                                    ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-300'
-                                    : challenge.difficulty === 'medium'
-                                    ? 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
-                                    : 'bg-error-100 text-error-800 dark:bg-error-900/30 dark:text-error-300'
-                                }`}>
-                                  {challenge.difficulty.charAt(0).toUpperCase() + challenge.difficulty.slice(1)}
+                  {/* Show challenges if they exist */}
+                  {path.challenges && path.challenges.length > 0 ? (
+                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {path.challenges.map((challenge, index) => (
+                        <div
+                          key={challenge.id}
+                          className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                  {index + 1}.
                                 </span>
-                                <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                  {getChallengeTypeIcon(challenge.challenge_type)}
-                                  {getChallengeTypeLabel(challenge.challenge_type)}
-                                </span>
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                                  {challenge.title}
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    challenge.difficulty === 'easy'
+                                      ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-300'
+                                      : challenge.difficulty === 'medium'
+                                      ? 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-300'
+                                      : 'bg-error-100 text-error-800 dark:bg-error-900/30 dark:text-error-300'
+                                  }`}>
+                                    {challenge.difficulty.charAt(0).toUpperCase() + challenge.difficulty.slice(1)}
+                                  </span>
+                                  <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                    {getChallengeTypeIcon(challenge.challenge_type)}
+                                    {getChallengeTypeLabel(challenge.challenge_type)}
+                                  </span>
+                                </div>
                               </div>
+                              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                                {challenge.description.split('\n')[0]}
+                              </p>
                             </div>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
-                              {challenge.description.split('\n')[0]}
-                            </p>
-                          </div>
-                          <div className="ml-6 flex-shrink-0">
-                            {user ? (
-                              <Link to={`/challenges/${challenge.id}`}>
-                                <Button>
-                                  {getChallengeActionText(challenge.challenge_type)}
+                            <div className="ml-6 flex-shrink-0">
+                              {user ? (
+                                <Link to={`/challenges/${challenge.id}`}>
+                                  <Button>
+                                    {getChallengeActionText(challenge.challenge_type)}
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Button disabled leftIcon={<Lock size={16} />}>
+                                  Sign in to Start
                                 </Button>
-                              </Link>
-                            ) : (
-                              <Button disabled leftIcon={<Lock size={16} />}>
-                                Sign in to Start
-                              </Button>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+                      <p className="text-sm">
+                        {searchQuery 
+                          ? 'No challenges match your search in this learning path.'
+                          : 'Challenges for this learning path are coming soon!'
+                        }
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               ))}
 
