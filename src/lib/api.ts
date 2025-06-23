@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 import { Challenge, UserProgress, LearningPath, CanvasData } from '../types';
 
 export async function getLearningPaths(): Promise<LearningPath[]> {
+  console.log('Fetching learning paths...');
+  
   const { data, error } = await supabase
     .from('learning_paths')
     .select(`
@@ -10,8 +12,13 @@ export async function getLearningPaths(): Promise<LearningPath[]> {
     `)
     .order('order_index', { ascending: true });
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('Error fetching learning paths:', error);
+    throw error;
+  }
+  
+  console.log('Learning paths fetched:', data);
+  return data || [];
 }
 
 export async function getChallenges(): Promise<Challenge[]> {

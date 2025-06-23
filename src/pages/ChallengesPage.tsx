@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { DataDebug } from '../components/debug/DataDebug';
 import { Search, Bug, Code2, Network, Layout as LayoutIcon, CheckCircle2, Lock, Search as SearchIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LearningPath, Challenge } from '../types';
@@ -14,6 +15,7 @@ const ChallengesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -22,11 +24,15 @@ const ChallengesPage: React.FC = () => {
 
   const loadPaths = async () => {
     try {
+      setLoading(true);
+      setError(null);
+      console.log('Loading learning paths...');
       const data = await getLearningPaths();
+      console.log('Learning paths loaded:', data);
       setPaths(data);
-    } catch (err) {
-      setError('Failed to load learning paths');
-      console.error(err);
+    } catch (err: any) {
+      console.error('Error loading learning paths:', err);
+      setError('Failed to load learning paths: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -116,6 +122,20 @@ const ChallengesPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Debug Toggle */}
+          <div className="mb-4 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDebug(!showDebug)}
+            >
+              {showDebug ? 'Hide' : 'Show'} Debug Info
+            </Button>
+          </div>
+
+          {/* Debug Component */}
+          {showDebug && <DataDebug />}
+
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
             <Input
               placeholder="Search challenges..."
@@ -126,9 +146,31 @@ const ChallengesPage: React.FC = () => {
             />
           </div>
 
-          {error ? (
-            <div className="bg-error-50 dark:bg-error-900/30 text-error-800 dark:text-error-200 p-4 rounded-lg mb-8">
-              {error}
+          {error && (
+            <div className="bg-error-50 dark:bg-error-900/30 text-error-800 dark:text-error-200 p-6 rounded-lg mb-8">
+              <h3 className="text-lg font-medium mb-2">Error Loading Learning Paths</h3>
+              <p>{error}</p>
+              <Button 
+                className="mt-4" 
+                onClick={loadPaths}
+                variant="outline"
+              >
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {paths.length === 0 && !error ? (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                No learning paths found
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                It looks like there are no learning paths available yet.
+              </p>
+              <Button onClick={loadPaths}>
+                Refresh
+              </Button>
             </div>
           ) : (
             <div className="space-y-12">
