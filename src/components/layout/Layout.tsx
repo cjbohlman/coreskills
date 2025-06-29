@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { NavBar } from './NavBar';
 import { Footer } from './Footer';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,8 +30,10 @@ const pageTransition = {
 };
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { theme } = useTheme();
+
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative">
       <NavBar />
       <motion.main
         className="flex-grow"
@@ -43,6 +46,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </motion.main>
       <Footer />
+      
+      {/* Corner Circle - changes based on theme */}
+      <div className="fixed bottom-4 right-4 z-10 pointer-events-none">
+        <img
+          src={theme === 'light' ? '/black_circle_360x360.png' : '/white_circle_360x360.png'}
+          alt=""
+          className="w-16 h-16 opacity-20 transition-opacity duration-300"
+        />
+      </div>
     </div>
   );
 };
