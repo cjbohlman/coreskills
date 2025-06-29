@@ -481,26 +481,28 @@ const SolutionPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Selected Approach Details */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                {/* Architecture Diagram */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                  <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {currentApproach.title} - Architecture
-                    </h3>
-                  </div>
-                  <div className="p-4">
-                    <Suspense fallback={<CanvasLoader />}>
-                      <SolutionCanvas 
-                        approach={currentApproach} 
-                        isLoading={canvasLoading}
-                      />
-                    </Suspense>
+              {/* Selected Approach Details - Adjusted layout for better alignment */}
+              <div className="grid grid-cols-1 2xl:grid-cols-3 gap-8">
+                {/* Architecture Diagram - Takes 2 columns on 2xl screens */}
+                <div className="2xl:col-span-2">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                    <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        {currentApproach.title} - Architecture
+                      </h3>
+                    </div>
+                    <div className="p-4">
+                      <Suspense fallback={<CanvasLoader />}>
+                        <SolutionCanvas 
+                          approach={currentApproach} 
+                          isLoading={canvasLoading}
+                        />
+                      </Suspense>
+                    </div>
                   </div>
                 </div>
 
-                {/* Approach Analysis */}
+                {/* Approach Analysis - Takes 1 column on 2xl screens */}
                 <div className="space-y-6">
                   {/* Metrics */}
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
@@ -539,7 +541,7 @@ const SolutionPage: React.FC = () => {
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                       Trade-offs Analysis
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-6">
                       <div>
                         <h4 className="text-sm font-medium text-green-600 dark:text-green-400 mb-3 flex items-center gap-2">
                           <CheckCircle size={16} />
@@ -554,6 +556,7 @@ const SolutionPage: React.FC = () => {
                           ))}
                         </ul>
                       </div>
+                      
                       <div>
                         <h4 className="text-sm font-medium text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
                           <AlertTriangle size={16} />
