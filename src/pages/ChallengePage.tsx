@@ -4,7 +4,6 @@ import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { DrawingCanvas } from '../components/drawing/DrawingCanvas';
 import { CodeReviewInterface } from '../components/codeReview/CodeReviewInterface';
-import { SubmissionDebug } from '../components/debug/SubmissionDebug';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
@@ -348,15 +347,6 @@ const ChallengePage: React.FC = () => {
               </pre>
             </div>
           </div>
-
-          {/* Debug Component - Only show for system design challenges */}
-          {isSystemDesign && (
-            <SubmissionDebug
-              challenge={challenge}
-              canvasData={canvasData}
-              onTestSubmit={handleSubmit}
-            />
-          )}
 
           {isCodeReview ? (
             // Code Review Interface
