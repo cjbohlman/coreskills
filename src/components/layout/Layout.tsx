@@ -52,7 +52,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <img
           src={theme === 'light' ? '/black_circle_360x360.png' : '/white_circle_360x360.png'}
           alt=""
-          className="w-16 h-16 opacity-20 transition-opacity duration-300"
+          className="w-16 h-16 transition-opacity duration-300"
         />
       </div>
     </div>
