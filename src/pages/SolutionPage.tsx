@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
@@ -17,7 +17,8 @@ import {
   Lightbulb,
   Users,
   TrendingUp,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Challenge, CanvasData, UserProgress } from '../types';
@@ -38,6 +39,45 @@ interface SolutionApproach {
   considerations: string[];
 }
 
+// Canvas Loading Component
+const CanvasLoader: React.FC = () => (
+  <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-700 rounded-lg">
+    <div className="flex flex-col items-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-primary-600 dark:text-primary-400" />
+      <p className="text-sm text-gray-600 dark:text-gray-300">Loading architecture diagram...</p>
+    </div>
+  </div>
+);
+
+// Canvas Component with key prop to force re-render
+const SolutionCanvas: React.FC<{ approach: SolutionApproach; isLoading: boolean }> = ({ 
+  approach, 
+  isLoading 
+}) => {
+  if (isLoading) {
+    return <CanvasLoader />;
+  }
+
+  if (!approach.canvasData) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <div className="text-center">
+          <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">No diagram available for this approach</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DrawingCanvas
+      key={`${approach.id}-${Date.now()}`} // Force re-render when approach changes
+      initialData={approach.canvasData}
+      readOnly={true}
+    />
+  );
+};
+
 const SolutionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -51,12 +91,26 @@ const SolutionPage: React.FC = () => {
   const [showUserSubmission, setShowUserSubmission] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const [solutionApproaches, setSolutionApproaches] = useState<SolutionApproach[]>([]);
+  const [canvasLoading, setCanvasLoading] = useState(false);
 
   useEffect(() => {
     if (id && user) {
       loadChallengeAndProgress();
     }
   }, [id, user]);
+
+  // Handle approach selection with loading state
+  const handleApproachSelection = (index: number) => {
+    if (index !== selectedApproach) {
+      setCanvasLoading(true);
+      setSelectedApproach(index);
+      
+      // Simulate loading time for better UX
+      setTimeout(() => {
+        setCanvasLoading(false);
+      }, 300);
+    }
+  };
 
   const loadChallengeAndProgress = async () => {
     if (!id || !user) return;
@@ -400,7 +454,7 @@ const SolutionPage: React.FC = () => {
                           ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
-                      onClick={() => setSelectedApproach(index)}
+                      onClick={() => handleApproachSelection(index)}
                     >
                       <h3 className="font-medium text-gray-900 dark:text-white mb-2">
                         {approach.title}
@@ -430,21 +484,21 @@ const SolutionPage: React.FC = () => {
               {/* Selected Approach Details */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 {/* Architecture Diagram */}
-                {currentApproach.canvasData && (
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                    <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                        {currentApproach.title} - Architecture
-                      </h3>
-                    </div>
-                    <div className="p-4">
-                      <DrawingCanvas
-                        initialData={currentApproach.canvasData}
-                        readOnly={true}
-                      />
-                    </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                  <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                      {currentApproach.title} - Architecture
+                    </h3>
                   </div>
-                )}
+                  <div className="p-4">
+                    <Suspense fallback={<CanvasLoader />}>
+                      <SolutionCanvas 
+                        approach={currentApproach} 
+                        isLoading={canvasLoading}
+                      />
+                    </Suspense>
+                  </div>
+                </div>
 
                 {/* Approach Analysis */}
                 <div className="space-y-6">
