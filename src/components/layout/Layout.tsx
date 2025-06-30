@@ -48,7 +48,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Footer />
       
       {/* Corner Circle - changes based on theme */}
-      <div className="fixed bottom-4 right-4 z-10 pointer-events-none">
+      <div className="fixed bottom-4 right-4 z-10">
         <a href=" https://bolt.new/">
           <img
             src={theme === 'light' ? '/black_circle_360x360.png' : '/white_circle_360x360.png'}
