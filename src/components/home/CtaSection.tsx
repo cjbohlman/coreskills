@@ -43,7 +43,7 @@ export const CtaSection: React.FC = () => {
               <Link to="/challenges">
                 <Button
                   size="lg"
-                  className="border-white text-primary-white hover:bg-primary-50 focus:ring-white"
+                  className="border-white text-white hover:bg-primary-50 focus:ring-white"
                 >
                   Explore Free Challenges
                 </Button>
